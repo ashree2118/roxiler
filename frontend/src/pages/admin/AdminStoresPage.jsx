@@ -1,19 +1,5 @@
-import { useAuth } from "../../context/AuthContext.jsx";
-import { PageShell } from "./AdminDashboardPage.jsx";
+import { Navigate } from "react-router-dom";
 
 export default function AdminStoresPage() {
-  const { user, logout } = useAuth();
-
-  return (
-    <PageShell
-      title="Admin Stores"
-      subtitle="Manage stores and owner assignments"
-      user={user}
-      logout={logout}
-      links={[
-        { to: "/admin/dashboard", label: "Dashboard" },
-        { to: "/admin/users", label: "Manage Users" },
-      ]}
-    />
-  );
+  return <Navigate to="/admin/dashboard" replace />;
 }
