@@ -59,6 +59,49 @@ export function validateAddress(value) {
   return "";
 }
 
+export function validateStoreName(value) {
+  const trimmed = value?.trim() ?? "";
+
+  if (!trimmed) {
+    return "Store name is required";
+  }
+
+  if (trimmed.length < 20 || trimmed.length > 60) {
+    return "Store name must be between 20 and 60 characters";
+  }
+
+  return "";
+}
+
+export function validateStoreEmail(value) {
+  const trimmed = value?.trim() ?? "";
+
+  if (!trimmed) {
+    return "Store contact email is required";
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmed)) {
+    return "A valid store email address is required";
+  }
+
+  return "";
+}
+
+export function validateStoreAddress(value) {
+  const trimmed = value?.trim() ?? "";
+
+  if (!trimmed) {
+    return "Store address is required";
+  }
+
+  if (trimmed.length > 400) {
+    return "Store address must not exceed 400 characters";
+  }
+
+  return "";
+}
+
 export function validateLoginPassword(value) {
   if (!value) {
     return "Password is required";

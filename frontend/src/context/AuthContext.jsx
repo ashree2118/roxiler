@@ -50,6 +50,11 @@ export function AuthProvider({ children }) {
 
   const register = async (payload) => {
     const { data } = await api.post("/auth/register", payload);
+
+    if (data.token && data.user) {
+      persistAuth(data.token, data.user);
+    }
+
     return data;
   };
 
