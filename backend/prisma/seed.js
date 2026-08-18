@@ -3,22 +3,36 @@ import prisma, { disconnect } from "../src/config/prisma.js";
 
 const DEFAULT_PASSWORD = "Password123!";
 
+const SYSTEM_ADMIN = {
+  email: "admin@system.com",
+  password: "Admin@1234",
+  name: "System Administrator Account",
+  address: "Headquarters St 101, Main Server Hub",
+  role: "ADMIN",
+};
+
 async function hashPassword(password) {
   return bcrypt.hash(password, 10);
 }
 
 async function main() {
   const hashedPassword = await hashPassword(DEFAULT_PASSWORD);
+  const systemAdminPassword = await hashPassword(SYSTEM_ADMIN.password);
 
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@test.com" },
-    update: {},
+  const systemAdmin = await prisma.user.upsert({
+    where: { email: SYSTEM_ADMIN.email },
+    update: {
+      name: SYSTEM_ADMIN.name,
+      password: systemAdminPassword,
+      address: SYSTEM_ADMIN.address,
+      role: SYSTEM_ADMIN.role,
+    },
     create: {
-      name: "Admin User",
-      email: "admin@test.com",
-      password: hashedPassword,
-      address: "100 Admin Plaza, Admin City, AC 10001",
-      role: "ADMIN",
+      name: SYSTEM_ADMIN.name,
+      email: SYSTEM_ADMIN.email,
+      password: systemAdminPassword,
+      address: SYSTEM_ADMIN.address,
+      role: SYSTEM_ADMIN.role,
     },
   });
 
@@ -142,7 +156,10 @@ async function main() {
 
   console.log("Seed completed successfully");
   console.log({
-    admin: admin.email,
+    systemAdmin: {
+      email: systemAdmin.email,
+      password: SYSTEM_ADMIN.password,
+    },
     storeOwners: [owner1.email, owner2.email],
     stores: [store1.email, store2.email],
     users: [user1.email, user2.email],

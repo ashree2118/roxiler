@@ -27,7 +27,16 @@ function formatUserProfile(user) {
 
 export async function register(req, res) {
   try {
-    const { name, email, password, address } = req.body;
+    const {
+      name,
+      email,
+      password,
+      address,
+      role = "USER",
+      storeName,
+      storeEmail,
+      storeAddress,
+    } = req.body;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -36,18 +45,57 @@ export async function register(req, res) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        address,
-        role: "USER",
-      },
-    });
+    let user;
+
+    if (role === "STORE_OWNER") {
+      const existingStore = await prisma.store.findUnique({
+        where: { email: storeEmail },
+      });
+
+      if (existingStore) {
+        return res.status(409).json({
+          message: "Store email is already registered.",
+        });
+      }
+
+      user = await prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            name,
+            email,
+            password: hashedPassword,
+            address,
+            role: "STORE_OWNER",
+          },
+        });
+
+        await tx.store.create({
+          data: {
+            name: storeName,
+            email: storeEmail,
+            address: storeAddress,
+            ownerId: newUser.id,
+          },
+        });
+
+        return newUser;
+      });
+    } else {
+      user = await prisma.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          address,
+          role: "USER",
+        },
+      });
+    }
+
+    const token = createToken(user);
 
     return res.status(201).json({
-      message: "User registered successfully",
+      token,
       user: formatUserProfile(user),
     });
   } catch (error) {

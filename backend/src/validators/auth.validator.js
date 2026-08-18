@@ -26,6 +26,26 @@ export const registerValidator = [
     .trim()
     .isLength({ max: 400 })
     .withMessage("Address must not exceed 400 characters"),
+  body("role")
+    .optional()
+    .isIn(["USER", "STORE_OWNER"])
+    .withMessage("Role must be USER or STORE_OWNER"),
+  body("storeName")
+    .if(body("role").equals("STORE_OWNER"))
+    .trim()
+    .isLength({ min: 20, max: 60 })
+    .withMessage("Store name must be between 20 and 60 characters"),
+  body("storeEmail")
+    .if(body("role").equals("STORE_OWNER"))
+    .trim()
+    .isEmail()
+    .withMessage("A valid store email address is required")
+    .normalizeEmail(),
+  body("storeAddress")
+    .if(body("role").equals("STORE_OWNER"))
+    .trim()
+    .isLength({ max: 400 })
+    .withMessage("Store address must not exceed 400 characters"),
 ];
 
 export const loginValidator = [
