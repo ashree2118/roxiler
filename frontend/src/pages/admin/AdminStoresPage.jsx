@@ -1,5 +1,5 @@
-import { Navigate } from "react-router-dom";
+import AdminDashboardPage from "./AdminDashboardPage.jsx";
 
 export default function AdminStoresPage() {
-  return <Navigate to="/admin/dashboard" replace />;
+  return <AdminDashboardPage />;
 }

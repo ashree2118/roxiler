@@ -1,11 +1,17 @@
 import { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Store, UserRound } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 import {
+  getRoleHome,
   validateAddress,
   validateEmail,
   validateName,
   validatePassword,
+  validateStoreAddress,
+  validateStoreEmail,
+  validateStoreName,
 } from "../utils/validation.js";
 
 const initialForm = {
@@ -13,29 +19,65 @@ const initialForm = {
   email: "",
   password: "",
   address: "",
+  storeName: "",
+  storeEmail: "",
+  storeAddress: "",
 };
 
 export default function RegisterPage() {
+  const navigate = useNavigate();
   const { register, isAuthenticated, user } = useAuth();
+  const { showToast } = useToast();
+  const [accountType, setAccountType] = useState("USER");
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [submitError, setSubmitError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (isAuthenticated && user) {
-    return <Navigate to="/user/stores" replace />;
+    return <Navigate to={getRoleHome(user.role)} replace />;
   }
 
-  const validators = {
+  const isStoreOwner = accountType === "STORE_OWNER";
+
+  const userValidators = {
     name: validateName,
     email: validateEmail,
     password: validatePassword,
     address: validateAddress,
   };
 
-  const validateField = (name, value) => validators[name]?.(value) ?? "";
+  const storeValidators = {
+    storeName: validateStoreName,
+    storeEmail: validateStoreEmail,
+    storeAddress: validateStoreAddress,
+  };
+
+  const getValidators = () =>
+    isStoreOwner
+      ? { ...userValidators, ...storeValidators }
+      : userValidators;
+
+  const validateField = (name, value) => {
+    const validators = getValidators();
+    return validators[name]?.(value) ?? "";
+  };
+
+  const handleAccountTypeChange = (nextType) => {
+    setAccountType(nextType);
+    setSubmitError("");
+
+    if (nextType === "USER") {
+      setErrors((current) => {
+        const next = { ...current };
+        delete next.storeName;
+        delete next.storeEmail;
+        delete next.storeAddress;
+        return next;
+      });
+    }
+  };
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -59,6 +101,7 @@ export default function RegisterPage() {
   };
 
   const validateForm = () => {
+    const validators = getValidators();
     const nextErrors = Object.keys(validators).reduce((accumulator, key) => {
       accumulator[key] = validateField(key, form[key]);
       return accumulator;
@@ -78,7 +121,6 @@ export default function RegisterPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitError("");
-    setSuccessMessage("");
 
     if (!validateForm()) {
       return;
@@ -87,17 +129,28 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      await register({
+      const payload = {
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
         address: form.address.trim(),
-      });
+        ...(isStoreOwner && {
+          role: "STORE_OWNER",
+          storeName: form.storeName.trim(),
+          storeEmail: form.storeEmail.trim(),
+          storeAddress: form.storeAddress.trim(),
+        }),
+      };
 
-      setSuccessMessage("Registration successful. You can now sign in.");
-      setForm(initialForm);
-      setTouched({});
-      setErrors({});
+      const data = await register(payload);
+
+      if (data.user.role === "STORE_OWNER") {
+        showToast("Your store has been submitted and approved! Welcome.");
+        navigate("/owner/dashboard", { replace: true });
+      } else {
+        showToast("Registration successful! Welcome.");
+        navigate("/user/stores", { replace: true });
+      }
     } catch (error) {
       setSubmitError(
         error.response?.data?.message || "Registration failed. Please try again."
@@ -113,13 +166,40 @@ export default function RegisterPage() {
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-semibold text-slate-900">Create account</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Register as a normal user to browse and rate stores
+            Choose your account type and complete the form below
           </p>
+        </div>
+
+        <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+          <button
+            type="button"
+            onClick={() => handleAccountTypeChange("USER")}
+            className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+              accountType === "USER"
+                ? "bg-white text-indigo-700 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <UserRound className="h-4 w-4" />
+            Normal User
+          </button>
+          <button
+            type="button"
+            onClick={() => handleAccountTypeChange("STORE_OWNER")}
+            className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+              accountType === "STORE_OWNER"
+                ? "bg-white text-indigo-700 shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Store className="h-4 w-4" />
+            Store Owner
+          </button>
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit} noValidate>
           <Field
-            label="Full name"
+            label={isStoreOwner ? "Owner full name" : "Full name"}
             name="name"
             value={form.name}
             onChange={handleChange}
@@ -129,7 +209,7 @@ export default function RegisterPage() {
           />
 
           <Field
-            label="Email"
+            label={isStoreOwner ? "Owner email" : "Email"}
             name="email"
             type="email"
             value={form.email}
@@ -155,7 +235,7 @@ export default function RegisterPage() {
               htmlFor="address"
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
-              Address
+              {isStoreOwner ? "Personal address" : "Address"}
             </label>
             <textarea
               id="address"
@@ -164,7 +244,11 @@ export default function RegisterPage() {
               value={form.address}
               onChange={handleChange}
               onBlur={handleBlur}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2"
+              className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2 ${
+                touched.address && errors.address
+                  ? "border-red-300"
+                  : "border-slate-300"
+              }`}
               placeholder="Your address (max 400 characters)"
             />
             {touched.address && errors.address && (
@@ -172,15 +256,68 @@ export default function RegisterPage() {
             )}
           </div>
 
+          {isStoreOwner && (
+            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-5">
+              <h2 className="mb-4 text-sm font-semibold text-indigo-900">
+                Your Store Information
+              </h2>
+
+              <div className="space-y-4">
+                <Field
+                  label="Store name"
+                  name="storeName"
+                  value={form.storeName}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={touched.storeName ? errors.storeName : ""}
+                  placeholder="At least 20 characters"
+                />
+
+                <Field
+                  label="Store contact email"
+                  name="storeEmail"
+                  type="email"
+                  value={form.storeEmail}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={touched.storeEmail ? errors.storeEmail : ""}
+                  placeholder="store@example.com"
+                />
+
+                <div>
+                  <label
+                    htmlFor="storeAddress"
+                    className="mb-1.5 block text-sm font-medium text-slate-700"
+                  >
+                    Store address
+                  </label>
+                  <textarea
+                    id="storeAddress"
+                    name="storeAddress"
+                    rows={3}
+                    value={form.storeAddress}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2 ${
+                      touched.storeAddress && errors.storeAddress
+                        ? "border-red-300"
+                        : "border-slate-300"
+                    }`}
+                    placeholder="Store location (max 400 characters)"
+                  />
+                  {touched.storeAddress && errors.storeAddress && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.storeAddress}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {submitError && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
               {submitError}
-            </p>
-          )}
-
-          {successMessage && (
-            <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
-              {successMessage}
             </p>
           )}
 
@@ -226,7 +363,9 @@ function Field({
         value={value}
         onChange={onChange}
         onBlur={onBlur}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2"
+        className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2 ${
+          error ? "border-red-300" : "border-slate-300"
+        }`}
         placeholder={placeholder}
       />
       {error && <p className="mt-1 text-sm text-red-600">{error}</p>}

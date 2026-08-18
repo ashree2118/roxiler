@@ -17,7 +17,7 @@ import {
 
 const router = Router();
 
-router.use(verifyToken, requireRole("ADMIN"));
+router.use(verifyToken, requireRole(["ADMIN"]));
 
 router.get("/dashboard", getDashboard);
 
